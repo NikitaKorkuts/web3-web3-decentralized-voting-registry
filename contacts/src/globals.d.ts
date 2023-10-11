@@ -1,6 +1,6 @@
 interface Window {
   ethereum?: {
-    enable: unknown;
+    request: unknown;
     on: unknown;
     off: unknown;
   };

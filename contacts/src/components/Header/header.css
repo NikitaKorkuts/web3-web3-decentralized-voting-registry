@@ -1,0 +1,15 @@
+header {
+    position: fixed;
+    display: flex;
+    align-items: center;
+    width: 100%;
+    min-width: 200px;
+    height: 60px;
+    background: #0F52BA;
+    z-index: 2;
+}
+
+.header__left {
+    display: flex;
+    align-items: center;
+}

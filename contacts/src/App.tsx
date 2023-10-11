@@ -3,6 +3,7 @@ import React, {Suspense, useEffect} from 'react';
 import './assets/styles/globals.css';
 import {useDispatch} from 'react-redux';
 import {initWeb3} from './store/web3/web3.actions';
+import {Layout} from './components/Layout/Layout';
 
 function App() {
   const dispatch = useDispatch();
@@ -15,16 +16,14 @@ function App() {
   const SurveyPage = React.lazy(() => import('./pages/Survey'));
 
   return (
-    <>
+    <Layout>
       <Suspense fallback="loading..." >
         <Routes>
           <Route path={'/'} element={<SurveysListPage />} />
-          <Route path={'survey'} element={<SurveyPage />} />
+          <Route path={'survey/:id'} element={<SurveyPage />} />
         </Routes>
       </Suspense>
-
-
-    </>
+    </Layout>
   )
 }
 

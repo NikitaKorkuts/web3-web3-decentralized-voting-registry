@@ -1,15 +1,17 @@
 import createSagaMiddleware from 'redux-saga';
 import { all } from 'redux-saga/effects'
 import { configureStore } from '@reduxjs/toolkit'
-import { surveysReducer } from './surveys/surveys.slice';
+import surveysReducer from './surveys/surveys.slice';
 import web3Reducer from './web3/web3.slice';
 import watchInitWeb3Saga from './web3/web3.sagas';
+import surveySaga from './surveys/surveys.saga';
 
 const sagaMiddleware = createSagaMiddleware();
 
 export default function* rootSaga() {
   yield all([
-    watchInitWeb3Saga()
+    watchInitWeb3Saga(),
+    surveySaga(),
   ])
 }
 

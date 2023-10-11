@@ -1,26 +1,39 @@
 pragma solidity ^0.8.0;
 
+pragma solidity ^0.8.0;
+
 contract Contacts {
     address public owner;
 
     struct Survey {
         uint id;
         string question;
-        string[10] options;
-        uint[10] voteCounts;
+        string[] options;
+        uint[] voteCounts;
         string[] tags;
         address creator;
         bool isActive;
+        string description;
+        string imgURL;
         mapping(address => bool) hasVoted;
+        mapping(address => uint) selectedOption;
+    }
+
+    struct SurveyResponse {
+        uint totalCount;
+        SurveySummary[] surveys;
     }
 
     struct SurveySummary {
         uint id;
         string question;
-        string[10] options;
-        uint[10] voteCounts;
+        string[] options;
+        uint[] voteCounts;
         string[] tags;
-        bool isActive;  // We add property isActive
+        bool isActive;
+        string description;
+        string imgURL;
+        address creator;
     }
 
     mapping(uint => Survey) public surveys;
@@ -28,32 +41,54 @@ contract Contacts {
     uint public surveyCount;
     uint public nextSurveyId;
 
-    event SurveyCreated(uint surveyId, string question, string[10] options);
+    event SurveyCreated(uint surveyId, string question, string[] options, string description, string imgURL);
     event SurveyDeleted(uint surveyId);
     event VoteCasted(uint surveyId, string option, uint voteCount);
     event SurveysDeleted();
 
     constructor() {
         owner = msg.sender;
+
+        for (uint i = 0; i < 8; i++) {
+            string[] memory options = new string[](4);
+            options[0] = "Option 1";
+            options[1] = "Option 2";
+            options[2] = "Option 3";
+            options[3] = "Option 4";
+            string[] memory tags = new string[](3);
+            tags[0] = "tag1";
+            tags[1] = "tag2";
+            tags[2] = "tag3";
+            createSurvey(
+                "Question...",
+                options,
+                tags,
+                "Description...",
+                "../../assets/images/2.jpg");
+        }
     }
 
-    function createSurvey(string memory _question, string[10] memory _options, string[] memory _tags) public {
+    function createSurvey(string memory _question, string[] memory _options, string[] memory _tags,
+        string memory _description, string memory _imgURL) public {
         require(bytes(_question).length > 0, "Question must not be empty");
-        require(_options.length > 0, "Survey must have at least one option");
+        require(_options.length >= 2 && _options.length <= 10, "Survey must have from 2 to 10 options");
 
         uint surveyId = nextSurveyId++;
         surveys[surveyId].id = surveyId;
         surveys[surveyId].question = _question;
         surveys[surveyId].options = _options;
+        surveys[surveyId].voteCounts = new uint[](_options.length);
         surveys[surveyId].creator = msg.sender;
         surveys[surveyId].tags = _tags;
         surveys[surveyId].isActive = true;
+        surveys[surveyId].description = _description;
+        surveys[surveyId].imgURL = _imgURL;
 
         for (uint i = 0; i < _tags.length; i++) {
             surveysByTag[_tags[i]].push(surveyId);
         }
 
-        emit SurveyCreated(surveyId, _question, _options);
+        emit SurveyCreated(surveyId, _question, _options, _description, _imgURL);
 
         surveyCount++;
     }
@@ -83,6 +118,7 @@ contract Contacts {
             if (keccak256(bytes(survey.options[i])) == keccak256(bytes(_option))) {
                 survey.voteCounts[i]++;
                 emit VoteCasted(_surveyId, _option, survey.voteCounts[i]);
+                survey.selectedOption[msg.sender] = i;
                 break;
             }
         }
@@ -90,22 +126,28 @@ contract Contacts {
         survey.hasVoted[msg.sender] = true;
     }
 
-    function getSurveys(uint limit, uint page, string[] memory tags) public view returns (SurveySummary[] memory) {
+    function getSurveys(uint limit, uint page, string[] calldata tags) public view returns (SurveyResponse memory) {
         require(limit > 0, "Limit must be greater than 0");
 
-        SurveySummary[] memory allSurveys = new SurveySummary[](limit);
+        SurveyResponse memory response;
+
+        response.totalCount = surveyCount;
+        response.surveys = new SurveySummary[](limit);
+
         uint count = 0;
         uint i = (page - 1) * limit;
 
         while(i < surveyCount && count < limit){
             if ((tags.length == 0 || containsAnyTag(surveys[i].tags, tags)) && surveys[i].isActive){
-                allSurveys[count] = toSummary(surveys[i]);
+                response.surveys[count] = toSummary(surveys[i]);
                 count++;
             }
             i++;
         }
 
-        return trim(allSurveys, count);
+        response.surveys = trim(response.surveys, count);
+
+        return response;
     }
 
     function toSummary(Survey storage survey) internal view returns (SurveySummary memory) {
@@ -115,7 +157,10 @@ contract Contacts {
         options: survey.options,
         voteCounts: survey.voteCounts,
         tags: survey.tags,
-        isActive: survey.isActive
+        isActive: survey.isActive,
+        description: survey.description,
+        imgURL: survey.imgURL,
+        creator: survey.creator
         });
     }
 
@@ -138,7 +183,7 @@ contract Contacts {
         return trimmedArray;
     }
 
-    function getResults(uint _surveyId) public view returns (string[10] memory, uint[10] memory) {
+    function getResults(uint _surveyId) public view returns (string[] memory, uint[] memory) {
         require(_surveyId < surveyCount, "Invalid surveyId");
 
         Survey storage survey = surveys[_surveyId];
@@ -146,12 +191,36 @@ contract Contacts {
         return (survey.options, survey.voteCounts);
     }
 
-    function getSurveyById(uint _surveyId) public view returns (string memory, string[10] memory, uint[10] memory, address, bool) {
+    function getSurveyById(uint _surveyId) public view returns (
+        uint,
+        string memory,
+        string memory,
+        bool,
+        string[] memory,
+        string[] memory,
+        uint[] memory,
+        address,
+        string memory,
+        bool,
+        uint)
+    {
         require(_surveyId < surveyCount, "Invalid surveyId");
 
         Survey storage survey = surveys[_surveyId];
 
-        return (survey.question, survey.options, survey.voteCounts, survey.creator, survey.isActive);
+        return (
+        survey.id,
+        survey.question,
+        survey.description,
+        survey.isActive,
+        survey.options,
+        survey.tags,
+        survey.voteCounts,
+        survey.creator,
+        survey.imgURL,
+        survey.hasVoted[msg.sender],
+        survey.selectedOption[msg.sender]
+        );
     }
 
     function deleteAllSurveys() public {

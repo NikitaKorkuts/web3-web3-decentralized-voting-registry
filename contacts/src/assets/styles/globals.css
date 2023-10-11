@@ -1,1 +1,10 @@
 @import 'reset.css';
+
+main {
+    position: relative;
+    max-width: 80%;
+    min-width: 200px;
+    margin: 0 auto;
+    padding-top: 80px;
+    min-height: 100vh;
+}
